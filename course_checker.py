@@ -4,7 +4,7 @@ import os
 def check_and_notify():
     api_url = "https://lovebaby.sw.ntpc.gov.tw/api/course/signup/list"
     # 這裡以泰山中心 Z0047 為例，可依網頁 F12 看到的 API 修改
-    payload = {"centerId": "Z0055", "page": 1, "pageSize": 20}
+    payload = {"centerId": "Z0047", "page": 1, "pageSize": 20}
     try:
         res = requests.post(api_url, json=payload, timeout=10)
         courses = res.json().get('data', [])
