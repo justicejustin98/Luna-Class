@@ -1,0 +1,44 @@
+import requests
+import os
+
+def check_and_notify():
+    # 1. 抓取新北育兒網 API (以泰山中心為例)
+    api_url = "https://lovebaby.sw.ntpc.gov.tw/api/course/signup/list"
+    payload = {"centerId": "Z0047", "page": 1, "pageSize": 15}
+    
+    try:
+        res = requests.post(api_url, json=payload, timeout=10)
+        courses = res.json().get('data', [])
+        
+        match_list = []
+        for c in courses:
+            title = c.get('title', '')
+            date_info = c.get('courseDate', '')
+            status = c.get('regStatusName', '') # 狀態：如「我要報名」
+            
+            # 判斷：只要六日 + 狀態是可以報名的
+            if any(day in date_info for day in ["(六)", "(日)"]) and "我要報名" in status:
+                match_list.append(f"📅 {date_info}\n📖 {title}")
+
+        if match_list:
+            msg = "🔥 發現可報名的週末課程！\n\n" + "\n---\n".join(match_list)
+            send_tg(msg)
+            
+    except Exception as e:
+        print(f"Error: {e}")
+
+def send_tg(text):
+    token = os.environ.get('TG_TOKEN')
+    chat_id = os.environ.get('TG_CHAT_ID')
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    params = {
+        "chat_id": chat_id, 
+        "text": text,
+        "reply_markup": {
+            "inline_keyboard": [[{"text": "立即前往報名", "url": "https://lovebaby.sw.ntpc.gov.tw/#/course-signupcourse/07/Z0047"}]]
+        }
+    }
+    requests.post(url, json=params)
+
+if __name__ == "__main__":
+    check_and_notify()
