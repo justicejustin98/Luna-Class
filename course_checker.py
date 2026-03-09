@@ -10,7 +10,7 @@ def check_and_notify():
         courses = res.json().get('data', [])
         match_list = [f"📅 {c['courseDate']}\n📖 {c['title']}" for c in courses 
                       if any(day in c['courseDate'] for day in ["(六)", "(日)"]) 
-                      and "我要報名" in c['regStatusName']]
+                      and "加入報名清單" in c['regStatusName']]
         if match_list:
             send_tg("🔥 發現可報名週末課程！\n\n" + "\n---\n".join(match_list))
     except Exception as e: print(f"Error: {e}")
