@@ -1,0 +1,19 @@
+name: CourseMonitor
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小時自動執行一次
+  workflow_dispatch:      # 允許手動測試執行
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - run: pip install requests
+      - run: python course_checker.py
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
