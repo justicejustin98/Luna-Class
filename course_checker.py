@@ -1,9 +1,9 @@
 import requests
 import os
+from datetime import datetime
 
 def check_and_notify():
     api_url = "https://lovebaby.sw.ntpc.gov.tw/api/course/signup/list"
-    # Z0047 為三峽北大親子館
     payload = {"centerId": "Z0047", "page": 1, "pageSize": 50} 
     
     try:
@@ -11,24 +11,49 @@ def check_and_notify():
         courses = res.json().get('data', [])
         
         match_list = []
-        for c in courses:
-            date_info = c.get('courseDate', '')
+        debug_info = []
+        
+        for i, c in enumerate(courses):
+            date_info = str(c.get('courseDate', ''))
             title = c.get('title', '')
-            status = c.get('regStatusName', '') 
+            status = str(c.get('regStatusName', ''))
             
-            # 嚴格篩選：只要 (六) 或 (日)
+            # 記錄前 3 筆原始資料，用來抓漏
+            if i < 3:
+                debug_info.append(f"日期: {date_info} | 狀態: {status} | 課名: {title}")
+            
+            # 智慧判斷是否為週末 (解析 YYYY-MM-DD)
+            is_weekend = False
             if "(六)" in date_info or "(日)" in date_info:
-                # 排除「已額滿」或「已截止」的課，確保是有名額的
-                if "額滿" not in status and "截止" not in status:
-                    match_list.append(f"✅ {date_info}\n📖 {title}")
+                is_weekend = True
+            else:
+                try:
+                    # 擷取純日期部分並轉換格式
+                    date_str = date_info.split(" ")[0].split("T")[0].replace("/", "-")
+                    d_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                    if d_obj.weekday() >= 5: # 5是週六, 6是週日
+                        is_weekend = True
+                except:
+                    pass
+            
+            # 只要是六日，且狀態沒有顯示額滿、截止、候補，就抓出來
+            if is_weekend:
+                if status and "額滿" not in status and "截止" not in status and "候補" not in status:
+                    match_list.append(f"✅ {date_info}\n📖 {title}\n📌 狀態: {status}")
+                elif not status or status == "None": 
+                    # 有時候可報名時，狀態文字剛好是空的
+                    match_list.append(f"✅ {date_info}\n📖 {title}\n📌 狀態: (可報名)")
 
-        # 如果有找到符合條件的課程，才發送通知
         if match_list:
             msg = "🔥 發現三峽北大週末可報名課程！\n\n" + "\n---\n".join(match_list)
             send_tg(msg)
+        else:
+            # 如果還是找不到，就把系統看到的真面目傳給你看
+            debug_msg = "⚠️ 程式過濾後沒找到。請看系統抓到的前3筆原始資料長怎樣：\n\n" + "\n".join(debug_info)
+            send_tg(debug_msg)
             
     except Exception as e:
-        print(f"執行發生錯誤: {e}")
+        send_tg(f"❌ 執行發生錯誤: {e}")
 
 def send_tg(text):
     token = os.environ.get('TG_TOKEN')
@@ -38,7 +63,7 @@ def send_tg(text):
         "chat_id": chat_id, 
         "text": text,
         "reply_markup": {
-            "inline_keyboard": [[{"text": "前往報名頁面 (點擊開啟日曆)", "url": "https://lovebaby.sw.ntpc.gov.tw/#/course-signupcourse/07/Z0047"}]]
+            "inline_keyboard": [[{"text": "前往報名頁面", "url": "https://lovebaby.sw.ntpc.gov.tw/#/course-signupcourse/07/Z0047"}]]
         }
     }
     requests.post(url, json=payload)
